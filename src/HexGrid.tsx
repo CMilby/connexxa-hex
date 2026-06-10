@@ -153,7 +153,7 @@ const TETRAHEX_SHAPES: Axial[][] = [
 
 // Lower weight makes the single hex appear less often than the tetrahex pieces (~6.5% chance)
 // S / zigzag and S mirrored are disabled (weight 0) but kept for reference
-const SHAPE_WEIGHTS = [37, 37, 37, 0, 37, 37, 18, 37, 0, 37]
+const SHAPE_WEIGHTS = [37, 37, 30, 0, 37, 37, 18, 37, 0, 37]
 
 const SINGLE_HEX_SHAPE_INDEX = 6
 
