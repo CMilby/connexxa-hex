@@ -41,6 +41,42 @@ const THEMES: Theme[] = [
 		pieceColors: ['#8d99ae', '#5e6a8c', '#9a8c98', '#6f8a93', '#7d6e83', '#576f72', '#cbd5e1'],
 		emptyCell: '#1c1c2b',
 	},
+	{
+		id: 'ocean',
+		name: 'Ocean',
+		pieceColors: ['#118ab2', '#06d6a0', '#073b4c', '#5fb0b7', '#0496ff', '#83c5be', '#edf6f9'],
+		emptyCell: '#dceefb',
+	},
+	{
+		id: 'autumn',
+		name: 'Autumn',
+		pieceColors: ['#bc4749', '#dd6e42', '#e8a317', '#a47148', '#6a4c2c', '#8c5e58', '#c97b63'],
+		emptyCell: '#f3e1c5',
+	},
+	{
+		id: 'retro',
+		name: 'Retro',
+		pieceColors: ['#ff00ff', '#00ffff', '#ffff00', '#39ff14', '#ff5f1f', '#ff1493', '#ffffff'],
+		emptyCell: '#0d0d0d',
+	},
+	{
+		id: 'mono',
+		name: 'Monochrome',
+		pieceColors: ['#1a1a1a', '#3d3d3d', '#5e5e5e', '#7f7f7f', '#a0a0a0', '#c1c1c1', '#e2e2e2'],
+		emptyCell: '#f5f5f5',
+	},
+	{
+		id: 'candy',
+		name: 'Candy',
+		pieceColors: ['#ff6fb5', '#c77dff', '#7bdff2', '#ffb6e1', '#fff075', '#a0ffe6', '#ffffff'],
+		emptyCell: '#fdf0f7',
+	},
+	{
+		id: 'forest',
+		name: 'Forest',
+		pieceColors: ['#2d6a4f', '#40916c', '#74c69d', '#95d5b2', '#588157', '#a3b18a', '#d4a373'],
+		emptyCell: '#e9edc9',
+	},
 ]
 
 type Axial = { q: number; r: number }
