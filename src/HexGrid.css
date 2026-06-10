@@ -112,7 +112,10 @@
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	min-width: 240px;
+	width: min(360px, 90vw);
+	max-height: 85vh;
+	overflow-y: auto;
+	box-sizing: border-box;
 }
 
 .modal-title {
@@ -148,11 +151,13 @@
 
 .theme-options {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 10px;
 }
 
 .theme-swatch {
-	flex: 1;
+	flex: 1 1 calc(50% - 10px);
+	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -163,6 +168,7 @@
 	background: #f7f7f7;
 	cursor: pointer;
 	transition: border-color 0.15s ease, background 0.15s ease;
+	box-sizing: border-box;
 }
 
 .theme-swatch:hover {
@@ -221,4 +227,15 @@
 
 .btn-secondary {
 	background: #95a5a6;
+}
+
+@media (max-width: 420px) {
+	.modal {
+		padding: 24px 20px;
+	}
+
+	.btn {
+		font-size: 16px;
+		padding: 12px 20px;
+	}
 }

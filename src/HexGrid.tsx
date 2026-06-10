@@ -583,6 +583,14 @@ function HexGrid() {
 						style={{ cursor: 'grab' }}
 						onPointerDown={(e) => handlePieceDown(i, piece.color, piece.shapeIndex, piece.cells, e)}
 					>
+						<rect
+							x={slot.x - (maxX - minX) / 2 - PALETTE_HEX_SIZE}
+							y={slot.y - (maxY - minY) / 2 - PALETTE_HEX_SIZE}
+							width={maxX - minX + PALETTE_HEX_SIZE * 2}
+							height={maxY - minY + PALETTE_HEX_SIZE * 2}
+							fill="transparent"
+							style={{ pointerEvents: 'all' }}
+						/>
 						{pixels.map((p, j) => (
 							<polygon
 								key={j}
