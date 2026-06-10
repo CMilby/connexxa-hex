@@ -288,6 +288,7 @@ interface Dragging {
 	pointer: { x: number; y: number }
 	targetCells: Axial[]
 	valid: boolean
+	previewClearCells: Axial[]
 }
 
 interface ReturningPiece {
@@ -497,7 +498,22 @@ function HexGrid() {
 		const valid = targetCells.every(
 			(c) => inGrid(c.q, c.r) && !filledRef.current[`${c.q},${c.r}`],
 		)
-		return { pieceIndex, color, shapeIndex, cells: pieceCells, pointer: point, targetCells, valid }
+		const targetKeys = new Set(targetCells.map((c) => `${c.q},${c.r}`))
+		const previewClearCells = valid
+			? LINES.filter((line) =>
+					line.every((c) => filledRef.current[`${c.q},${c.r}`] || targetKeys.has(`${c.q},${c.r}`)),
+				).flat()
+			: []
+		return {
+			pieceIndex,
+			color,
+			shapeIndex,
+			cells: pieceCells,
+			pointer: point,
+			targetCells,
+			valid,
+			previewClearCells,
+		}
 	}
 
 	const handlePieceDown = (
@@ -792,6 +808,22 @@ function HexGrid() {
 							opacity={dragging.valid ? 0.35 : 0.25}
 							pointerEvents="none"
 							style={{ transition: 'fill 0.1s ease, opacity 0.1s ease' }}
+						/>
+					)
+				})}
+
+			{dragging &&
+				dragging.previewClearCells.map((c, i) => {
+					const { x, y } = axialToPixel(c.q, c.r, HEX_SIZE)
+					return (
+						<polygon
+							key={`preview-clear-${i}`}
+							points={hexPoints(centerX + x, centerY + y, HEX_SIZE)}
+							fill="#ffffff"
+							stroke="none"
+							opacity={0.35}
+							pointerEvents="none"
+							style={{ transition: 'opacity 0.1s ease' }}
 						/>
 					)
 				})}
