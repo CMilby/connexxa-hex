@@ -14,6 +14,11 @@ interface Theme {
 	name: string
 	pieceColors: string[]
 	emptyCell: string
+	background: string
+	surface: string
+	text: string
+	textSecondary: string
+	mode: 'light' | 'dark'
 }
 
 const THEMES: Theme[] = [
@@ -22,60 +27,110 @@ const THEMES: Theme[] = [
 		name: 'Classic',
 		pieceColors: ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c', '#34495e'],
 		emptyCell: '#f5d76e',
+		background: '#f4f6f7',
+		surface: '#ffffff',
+		text: '#5d6d7e',
+		textSecondary: '#95a5a6',
+		mode: 'light',
 	},
 	{
 		id: 'pastel',
 		name: 'Pastel',
 		pieceColors: ['#ffadad', '#a0c4ff', '#caffbf', '#cdb4db', '#ffd6a5', '#9bf6ff', '#fdffb6'],
 		emptyCell: '#fff1d6',
+		background: '#fef9f5',
+		surface: '#ffffff',
+		text: '#9a8c98',
+		textSecondary: '#cdb4db',
+		mode: 'light',
 	},
 	{
 		id: 'neon',
 		name: 'Neon',
 		pieceColors: ['#ff6b6b', '#4cc9f0', '#7bf1a8', '#b388ff', '#ffd166', '#f15bb5', '#ffffff'],
 		emptyCell: '#1b1f3b',
+		background: '#0d1117',
+		surface: '#161b2e',
+		text: '#f1f1f1',
+		textSecondary: '#8892b0',
+		mode: 'dark',
 	},
 	{
 		id: 'space',
 		name: 'Space',
 		pieceColors: ['#8d99ae', '#5e6a8c', '#9a8c98', '#6f8a93', '#7d6e83', '#576f72', '#cbd5e1'],
 		emptyCell: '#1c1c2b',
+		background: '#11131f',
+		surface: '#1c1c2b',
+		text: '#cbd5e1',
+		textSecondary: '#7d6e83',
+		mode: 'dark',
 	},
 	{
 		id: 'ocean',
 		name: 'Ocean',
 		pieceColors: ['#118ab2', '#06d6a0', '#073b4c', '#5fb0b7', '#0496ff', '#83c5be', '#edf6f9'],
 		emptyCell: '#dceefb',
+		background: '#eaf6f8',
+		surface: '#ffffff',
+		text: '#073b4c',
+		textSecondary: '#5fb0b7',
+		mode: 'light',
 	},
 	{
 		id: 'autumn',
 		name: 'Autumn',
 		pieceColors: ['#bc4749', '#dd6e42', '#e8a317', '#a47148', '#6a4c2c', '#8c5e58', '#c97b63'],
 		emptyCell: '#f3e1c5',
+		background: '#fbf3e7',
+		surface: '#ffffff',
+		text: '#6a4c2c',
+		textSecondary: '#bc4749',
+		mode: 'light',
 	},
 	{
 		id: 'retro',
 		name: 'Retro',
 		pieceColors: ['#ff00ff', '#00ffff', '#ffff00', '#39ff14', '#ff5f1f', '#ff1493', '#ffffff'],
 		emptyCell: '#0d0d0d',
+		background: '#000000',
+		surface: '#1a1a1a',
+		text: '#00ffff',
+		textSecondary: '#ff00ff',
+		mode: 'dark',
 	},
 	{
 		id: 'mono',
 		name: 'Monochrome',
 		pieceColors: ['#1a1a1a', '#3d3d3d', '#5e5e5e', '#7f7f7f', '#a0a0a0', '#c1c1c1', '#e2e2e2'],
 		emptyCell: '#f5f5f5',
+		background: '#fafafa',
+		surface: '#ffffff',
+		text: '#1a1a1a',
+		textSecondary: '#7f7f7f',
+		mode: 'light',
 	},
 	{
 		id: 'candy',
 		name: 'Candy',
 		pieceColors: ['#ff6fb5', '#c77dff', '#7bdff2', '#ffb6e1', '#fff075', '#a0ffe6', '#ffffff'],
 		emptyCell: '#fdf0f7',
+		background: '#fff5fb',
+		surface: '#ffffff',
+		text: '#c77dff',
+		textSecondary: '#ff6fb5',
+		mode: 'light',
 	},
 	{
 		id: 'forest',
 		name: 'Forest',
 		pieceColors: ['#2d6a4f', '#40916c', '#74c69d', '#95d5b2', '#588157', '#a3b18a', '#d4a373'],
 		emptyCell: '#e9edc9',
+		background: '#f1f7ed',
+		surface: '#ffffff',
+		text: '#2d6a4f',
+		textSecondary: '#74c69d',
+		mode: 'light',
 	},
 ]
 
@@ -228,6 +283,10 @@ function HexGrid() {
 	filledRef.current = filled
 	const [themeId, setThemeId] = useState(() => localStorage.getItem('hexTheme') ?? THEMES[0].id)
 	const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]
+
+	useEffect(() => {
+		document.body.style.background = theme.background
+	}, [theme.background])
 	const [pieces, setPieces] = useState(
 		() =>
 			loadGameState()?.pieces ?? [
@@ -484,7 +543,7 @@ function HexGrid() {
 	}))
 
 	return (
-		<div className="hex-app">
+		<div className="hex-app" style={{ background: theme.background, transition: 'background 0.2s ease' }}>
 			<button
 				type="button"
 				className="settings-btn"
@@ -494,13 +553,19 @@ function HexGrid() {
 				<img src={gearIcon} alt="" />
 			</button>
 			<div className="score-panel">
-				<div className="score-value">Score: {score}</div>
-				<div className="high-score">High Score: {highScore}</div>
+				<div className="score-value" style={{ color: theme.text }}>Score: {score}</div>
+				<div className="high-score" style={{ color: theme.textSecondary }}>High Score: {highScore}</div>
 			</div>
 			{showSettings && (
 				<div className="modal-overlay" onClick={() => setShowSettings(false)}>
-					<div className="modal" onClick={(e) => e.stopPropagation()}>
-						<div className="modal-title">Settings</div>
+					<div
+						className={`modal${theme.mode === 'dark' ? ' modal-dark' : ''}`}
+						style={{ background: theme.surface }}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="modal-title" style={{ color: theme.text }}>
+							Settings
+						</div>
 						<div className="theme-section">
 							<div className="theme-label">Theme</div>
 							<div className="theme-options">
@@ -543,7 +608,7 @@ function HexGrid() {
 			)}
 			{gameOver && (
 				<div className="modal-overlay">
-					<div className="modal">
+					<div className={`modal${theme.mode === 'dark' ? ' modal-dark' : ''}`} style={{ background: theme.surface }}>
 						<div className="modal-title danger">Game Over</div>
 						<div className="modal-score">Score: {score}</div>
 						<div className="modal-score">High Score: {highScore}</div>

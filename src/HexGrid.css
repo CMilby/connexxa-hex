@@ -198,6 +198,32 @@
 	color: #2c3e50;
 }
 
+.modal-dark .modal-score {
+	color: #cbd5e1;
+}
+
+.modal-dark .theme-label {
+	color: #8892b0;
+}
+
+.modal-dark .theme-swatch {
+	border-color: rgba(255, 255, 255, 0.15);
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.modal-dark .theme-swatch:hover {
+	border-color: rgba(255, 255, 255, 0.35);
+}
+
+.modal-dark .theme-swatch.selected {
+	border-color: #4cc9f0;
+	background: rgba(76, 201, 240, 0.15);
+}
+
+.modal-dark .theme-swatch-name {
+	color: #f1f1f1;
+}
+
 .btn {
 	font-size: 18px;
 	font-weight: 700;
