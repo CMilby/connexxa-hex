@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import gearIcon from './assets/gear.png'
+import './HexGrid.css'
 
 const HEX_SIZE = 40
 const PALETTE_HEX_SIZE = 22
@@ -7,11 +9,43 @@ const RADIUS = SIDE - 1 // axial radius
 
 const SQRT3 = Math.sqrt(3)
 
-const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c']
+interface Theme {
+	id: string
+	name: string
+	pieceColors: string[]
+	emptyCell: string
+}
+
+const THEMES: Theme[] = [
+	{
+		id: 'classic',
+		name: 'Classic',
+		pieceColors: ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c', '#34495e'],
+		emptyCell: '#f5d76e',
+	},
+	{
+		id: 'pastel',
+		name: 'Pastel',
+		pieceColors: ['#ffadad', '#a0c4ff', '#caffbf', '#cdb4db', '#ffd6a5', '#9bf6ff', '#fdffb6'],
+		emptyCell: '#fff1d6',
+	},
+	{
+		id: 'neon',
+		name: 'Neon',
+		pieceColors: ['#ff6b6b', '#4cc9f0', '#7bf1a8', '#b388ff', '#ffd166', '#f15bb5', '#ffffff'],
+		emptyCell: '#1b1f3b',
+	},
+	{
+		id: 'space',
+		name: 'Space',
+		pieceColors: ['#8d99ae', '#5e6a8c', '#9a8c98', '#6f8a93', '#7d6e83', '#576f72', '#cbd5e1'],
+		emptyCell: '#1c1c2b',
+	},
+]
 
 type Axial = { q: number; r: number }
 
-// Tetrahex shapes, each defined as 4 axial offsets from (0,0)
+// Tetrahex shapes, each defined as 4 axial offsets from (0,0), plus a single hexagon
 const TETRAHEX_SHAPES: Axial[][] = [
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }], // I
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 2, r: -1 }], // C
@@ -19,21 +53,36 @@ const TETRAHEX_SHAPES: Axial[][] = [
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 2, r: -1 }], // S / zigzag
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }], // rhombus
 	[{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 0, r: 2 }, { q: 1, r: 2 }], // L
+	[{ q: 0, r: 0 }], // single hex
 ]
+
+// Lower weight makes the single hex appear less often than the tetrahex pieces (7.5% chance)
+const SHAPE_WEIGHTS = [37, 37, 37, 37, 37, 37, 18]
+
+function pickShapeIndex(): number {
+	const total = SHAPE_WEIGHTS.reduce((sum, w) => sum + w, 0)
+	let roll = Math.random() * total
+	for (let i = 0; i < SHAPE_WEIGHTS.length; i++) {
+		roll -= SHAPE_WEIGHTS[i]
+		if (roll < 0) return i
+	}
+	return SHAPE_WEIGHTS.length - 1
+}
 
 function rotate(cell: Axial): Axial {
 	return { q: -cell.r, r: cell.q + cell.r }
 }
 
-function randomPiece(): { cells: Axial[]; color: string } {
-	const shape = TETRAHEX_SHAPES[Math.floor(Math.random() * TETRAHEX_SHAPES.length)]
+function randomPiece(pieceColors: string[]): { cells: Axial[]; color: string; shapeIndex: number } {
+	const shapeIndex = pickShapeIndex()
+	const shape = TETRAHEX_SHAPES[shapeIndex]
 	const rotations = Math.floor(Math.random() * 6)
 	let cells = shape
 	for (let i = 0; i < rotations; i++) {
 		cells = cells.map(rotate)
 	}
-	const color = COLORS[Math.floor(Math.random() * COLORS.length)]
-	return { cells, color }
+	const color = pieceColors[shapeIndex % pieceColors.length]
+	return { cells, color, shapeIndex }
 }
 
 function hexCorner(cx: number, cy: number, size: number, i: number) {
@@ -100,27 +149,80 @@ function canPlacePiece(pieceCells: Axial[], filled: Record<string, string>): boo
 	)
 }
 
+interface SavedGameState {
+	filled: Record<string, string>
+	pieces: { cells: Axial[]; color: string; shapeIndex: number }[]
+	score: number
+}
+
+function loadGameState(): SavedGameState | null {
+	try {
+		const stored = localStorage.getItem('hexGameState')
+		if (!stored) return null
+		return JSON.parse(stored) as SavedGameState
+	} catch {
+		return null
+	}
+}
+
 interface Dragging {
 	pieceIndex: number
 	color: string
+	shapeIndex: number
 	cells: Axial[]
 	pointer: { x: number; y: number }
 	targetCells: Axial[]
 	valid: boolean
 }
 
+interface ReturningPiece {
+	pieceIndex: number
+	color: string
+	cells: Axial[]
+	from: { x: number; y: number }
+}
+
+const RETURN_DURATION = 220
+const POP_DURATION = 250
+
 function HexGrid() {
 	const svgRef = useRef<SVGSVGElement>(null)
-	const [filled, setFilled] = useState<Record<string, string>>({})
+	const [filled, setFilled] = useState<Record<string, string>>(() => loadGameState()?.filled ?? {})
 	const filledRef = useRef(filled)
 	filledRef.current = filled
-	const [pieces, setPieces] = useState(() => [randomPiece(), randomPiece(), randomPiece()])
+	const [themeId, setThemeId] = useState(() => localStorage.getItem('hexTheme') ?? THEMES[0].id)
+	const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]
+	const [pieces, setPieces] = useState(
+		() =>
+			loadGameState()?.pieces ?? [
+				randomPiece(theme.pieceColors),
+				randomPiece(theme.pieceColors),
+				randomPiece(theme.pieceColors),
+			],
+	)
 	const [dragging, setDragging] = useState<Dragging | null>(null)
-	const [score, setScore] = useState(0)
+	const [returning, setReturning] = useState<ReturningPiece | null>(null)
+	const [returningAnimate, setReturningAnimate] = useState(false)
+	const [poppingPieces, setPoppingPieces] = useState<Set<number>>(new Set())
+	const [score, setScore] = useState(() => loadGameState()?.score ?? 0)
+	const [clearingCells, setClearingCells] = useState<Set<string>>(new Set())
 	const [highScore, setHighScore] = useState(() => {
 		const stored = localStorage.getItem('hexHighScore')
 		return stored ? Number(stored) : 0
 	})
+	const [showSettings, setShowSettings] = useState(false)
+
+	const selectTheme = (id: string) => {
+		const newTheme = THEMES.find((t) => t.id === id) ?? THEMES[0]
+		setThemeId(id)
+		localStorage.setItem('hexTheme', id)
+		setPieces((ps) =>
+			ps.map((piece) => ({
+				...piece,
+				color: newTheme.pieceColors[piece.shapeIndex % newTheme.pieceColors.length],
+			})),
+		)
+	}
 
 	useEffect(() => {
 		const clearedLines = LINES.filter((line) => line.every((c) => filled[`${c.q},${c.r}`]))
@@ -133,18 +235,35 @@ function HexGrid() {
 		})
 		setScore((s) => s + gained)
 
-		setFilled((f) => {
-			const next = { ...f }
-			for (const line of clearedLines) {
-				for (const c of line) {
-					delete next[`${c.q},${c.r}`]
-				}
+		const clearedKeys = new Set<string>()
+		for (const line of clearedLines) {
+			for (const c of line) {
+				clearedKeys.add(`${c.q},${c.r}`)
 			}
-			return next
-		})
+		}
+		setClearingCells(clearedKeys)
+
+		const timeout = window.setTimeout(() => {
+			setFilled((f) => {
+				const next = { ...f }
+				for (const key of clearedKeys) {
+					delete next[key]
+				}
+				return next
+			})
+			setClearingCells(new Set())
+		}, 250)
+
+		return () => window.clearTimeout(timeout)
 	}, [filled])
 
-	const gameOver = pieces.every((piece) => !canPlacePiece(piece.cells, filled))
+	useEffect(() => {
+		const state: SavedGameState = { filled, pieces, score }
+		localStorage.setItem('hexGameState', JSON.stringify(state))
+	}, [filled, pieces, score])
+
+	const hasClearableLine = LINES.some((line) => line.every((c) => filled[`${c.q},${c.r}`]))
+	const gameOver = !hasClearableLine && pieces.every((piece) => !canPlacePiece(piece.cells, filled))
 
 	useEffect(() => {
 		if (!gameOver) return
@@ -156,10 +275,21 @@ function HexGrid() {
 	}, [gameOver, score])
 
 	const startNewGame = () => {
+		setHighScore((h) => {
+			if (score <= h) return h
+			localStorage.setItem('hexHighScore', String(score))
+			return score
+		})
 		setFilled({})
-		setPieces([randomPiece(), randomPiece(), randomPiece()])
+		setPieces([randomPiece(theme.pieceColors), randomPiece(theme.pieceColors), randomPiece(theme.pieceColors)])
 		setScore(0)
 		setDragging(null)
+		setReturning(null)
+	}
+
+	const resetHighScore = () => {
+		setHighScore(0)
+		localStorage.removeItem('hexHighScore')
 	}
 
 	const cells = ALL_CELLS
@@ -214,6 +344,7 @@ function HexGrid() {
 	const computeDrag = (
 		pieceIndex: number,
 		color: string,
+		shapeIndex: number,
 		pieceCells: Axial[],
 		point: { x: number; y: number },
 	): Dragging => {
@@ -225,18 +356,19 @@ function HexGrid() {
 		const valid = targetCells.every(
 			(c) => inGrid(c.q, c.r) && !filledRef.current[`${c.q},${c.r}`],
 		)
-		return { pieceIndex, color, cells: pieceCells, pointer: point, targetCells, valid }
+		return { pieceIndex, color, shapeIndex, cells: pieceCells, pointer: point, targetCells, valid }
 	}
 
 	const handlePieceDown = (
 		pieceIndex: number,
 		color: string,
+		shapeIndex: number,
 		pieceCells: Axial[],
 		e: React.PointerEvent,
 	) => {
 		if (gameOver) return
 		const p = toSvgPoint(e)
-		setDragging(computeDrag(pieceIndex, color, pieceCells, p))
+		setDragging(computeDrag(pieceIndex, color, shapeIndex, pieceCells, p))
 	}
 
 	useEffect(() => {
@@ -246,7 +378,7 @@ function HexGrid() {
 			const p = toSvgPoint(e)
 			setDragging((current) => {
 				if (!current) return current
-				return computeDrag(current.pieceIndex, current.color, current.cells, p)
+				return computeDrag(current.pieceIndex, current.color, current.shapeIndex, current.cells, p)
 			})
 		}
 
@@ -257,13 +389,23 @@ function HexGrid() {
 					setFilled((f) => {
 						const next = { ...f }
 						for (const c of current.targetCells) {
-							next[`${c.q},${c.r}`] = current.color
+							next[`${c.q},${c.r}`] = String(current.shapeIndex)
 						}
 						return next
 					})
 					setPieces((ps) =>
-						ps.map((piece, i) => (i === current.pieceIndex ? randomPiece() : piece)),
+						ps.map((piece, i) =>
+							i === current.pieceIndex ? randomPiece(theme.pieceColors) : piece,
+						),
 					)
+					setPoppingPieces((prev) => new Set(prev).add(current.pieceIndex))
+				} else {
+					setReturning({
+						pieceIndex: current.pieceIndex,
+						color: current.color,
+						cells: current.cells,
+						from: current.pointer,
+					})
 				}
 				return null
 			})
@@ -278,41 +420,98 @@ function HexGrid() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [dragging !== null])
 
+	useEffect(() => {
+		if (!returning) return
+		setReturningAnimate(false)
+		const raf = requestAnimationFrame(() => setReturningAnimate(true))
+		const timeout = window.setTimeout(() => {
+			setReturning(null)
+			setReturningAnimate(false)
+		}, RETURN_DURATION)
+		return () => {
+			cancelAnimationFrame(raf)
+			window.clearTimeout(timeout)
+		}
+	}, [returning])
+
+	useEffect(() => {
+		if (poppingPieces.size === 0) return
+		const timeout = window.setTimeout(() => {
+			setPoppingPieces(new Set())
+		}, POP_DURATION)
+		return () => window.clearTimeout(timeout)
+	}, [poppingPieces])
+
 	const slotCenters = [centerX - gridWidth / 3, centerX, centerX + gridWidth / 3].map((x) => ({
 		x,
 		y: gridHeight + paletteHeight / 2,
 	}))
 
 	return (
-		<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-			<div style={{ fontSize: 24, fontWeight: 'bold' }}>Score: {score}</div>
-			{gameOver && (
-				<div
-					style={{
-						position: 'fixed',
-						inset: 0,
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						background: 'rgba(0, 0, 0, 0.5)',
-						zIndex: 100,
-					}}
-				>
-					<div
-						style={{
-							background: '#fff',
-							borderRadius: 8,
-							padding: '24px 32px',
-							textAlign: 'center',
-							boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
-						}}
-					>
-						<div style={{ fontSize: 24, fontWeight: 'bold', color: '#e74c3c', marginBottom: 16 }}>
-							Game Over
+		<div className="hex-app">
+			<button
+				type="button"
+				className="settings-btn"
+				aria-label="Settings"
+				onClick={() => setShowSettings(true)}
+			>
+				<img src={gearIcon} alt="" />
+			</button>
+			<div className="score-panel">
+				<div className="score-value">Score: {score}</div>
+				<div className="high-score">High Score: {highScore}</div>
+			</div>
+			{showSettings && (
+				<div className="modal-overlay" onClick={() => setShowSettings(false)}>
+					<div className="modal" onClick={(e) => e.stopPropagation()}>
+						<div className="modal-title">Settings</div>
+						<div className="theme-section">
+							<div className="theme-label">Theme</div>
+							<div className="theme-options">
+								{THEMES.map((t) => (
+									<button
+										key={t.id}
+										type="button"
+										className={`theme-swatch${t.id === themeId ? ' selected' : ''}`}
+										aria-label={t.name}
+										onClick={() => selectTheme(t.id)}
+									>
+										<span className="theme-swatch-colors">
+											{t.pieceColors.slice(0, 4).map((c, i) => (
+												<span key={i} className="theme-swatch-dot" style={{ background: c }} />
+											))}
+										</span>
+										<span className="theme-swatch-name">{t.name}</span>
+									</button>
+								))}
+							</div>
 						</div>
-						<div style={{ fontSize: 18, marginBottom: 8 }}>Score: {score}</div>
-						<div style={{ fontSize: 18, marginBottom: 16 }}>High Score: {highScore}</div>
-						<button type="button" onClick={startNewGame}>
+						<button
+							type="button"
+							className="btn btn-primary"
+							onClick={() => {
+								startNewGame()
+								setShowSettings(false)
+							}}
+						>
+							Restart Game
+						</button>
+						<button type="button" className="btn btn-danger" onClick={resetHighScore}>
+							Reset High Score
+						</button>
+						<button type="button" className="btn btn-secondary" onClick={() => setShowSettings(false)}>
+							Close
+						</button>
+					</div>
+				</div>
+			)}
+			{gameOver && (
+				<div className="modal-overlay">
+					<div className="modal">
+						<div className="modal-title danger">Game Over</div>
+						<div className="modal-score">Score: {score}</div>
+						<div className="modal-score">High Score: {highScore}</div>
+						<button type="button" className="btn btn-primary" onClick={startNewGame}>
 							New Game
 						</button>
 					</div>
@@ -320,20 +519,34 @@ function HexGrid() {
 			)}
 			<svg
 			ref={svgRef}
-			width={width}
-			height={height}
 			viewBox={`0 0 ${width} ${height}`}
-			style={{ touchAction: 'none' }}
+			style={{ touchAction: 'none', width: '100%', maxWidth: width, height: 'auto' }}
 		>
 			{cellPixels.map((c) => (
 				<polygon
 					key={`${c.q},${c.r}`}
 					points={hexPoints(c.x, c.y, HEX_SIZE)}
-					fill={filled[`${c.q},${c.r}`] ?? '#f5d76e'}
+					fill={
+						filled[`${c.q},${c.r}`] !== undefined
+							? theme.pieceColors[Number(filled[`${c.q},${c.r}`]) % theme.pieceColors.length]
+							: theme.emptyCell
+					}
 					stroke="#333"
 					strokeWidth={1}
 				/>
 			))}
+
+			{cellPixels
+				.filter((c) => clearingCells.has(`${c.q},${c.r}`))
+				.map((c) => (
+					<polygon
+						key={`clear-${c.q},${c.r}`}
+						className="cell-clear-overlay"
+						points={hexPoints(c.x, c.y, HEX_SIZE)}
+						fill="#ffffff"
+						pointerEvents="none"
+					/>
+				))}
 
 			{dragging &&
 				dragging.targetCells
@@ -366,8 +579,9 @@ function HexGrid() {
 				return (
 					<g
 						key={i}
+						className={poppingPieces.has(i) ? 'piece-pop' : undefined}
 						style={{ cursor: 'grab' }}
-						onPointerDown={(e) => handlePieceDown(i, piece.color, piece.cells, e)}
+						onPointerDown={(e) => handlePieceDown(i, piece.color, piece.shapeIndex, piece.cells, e)}
 					>
 						{pixels.map((p, j) => (
 							<polygon
@@ -406,6 +620,38 @@ function HexGrid() {
 						</g>
 					)
 				})()}
+
+				{returning &&
+					(() => {
+						const pixels = returning.cells.map((c) => axialToPixel(c.q, c.r, HEX_SIZE))
+						const centroidX = pixels.reduce((sum, p) => sum + p.x, 0) / pixels.length
+						const centroidY = pixels.reduce((sum, p) => sum + p.y, 0) / pixels.length
+						const slot = slotCenters[returning.pieceIndex]
+						const scale = PALETTE_HEX_SIZE / HEX_SIZE
+						const target = returningAnimate
+							? { x: slot.x, y: slot.y, scale, opacity: 0 }
+							: { x: returning.from.x, y: returning.from.y, scale: 1, opacity: 0.85 }
+						return (
+							<g
+								pointerEvents="none"
+								style={{
+									transform: `translate(${target.x}px, ${target.y}px) scale(${target.scale})`,
+									opacity: target.opacity,
+									transition: `transform ${RETURN_DURATION}ms ease, opacity ${RETURN_DURATION}ms ease`,
+								}}
+							>
+								{pixels.map((p, i) => (
+									<polygon
+										key={i}
+										points={hexPoints(p.x - centroidX, p.y - centroidY, HEX_SIZE)}
+										fill={returning.color}
+										stroke="#333"
+										strokeWidth={1}
+									/>
+								))}
+							</g>
+						)
+					})()}
 			</svg>
 		</div>
 	)
