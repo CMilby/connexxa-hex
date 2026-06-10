@@ -151,8 +151,9 @@ const TETRAHEX_SHAPES: Axial[][] = [
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: -1 }, { q: 3, r: -2 }], // L mirrored
 ]
 
-// Lower weight makes the single hex appear less often than the tetrahex pieces (~5.1% chance)
-const SHAPE_WEIGHTS = [37, 37, 37, 37, 37, 37, 18, 37, 37, 37]
+// Lower weight makes the single hex appear less often than the tetrahex pieces (~6.5% chance)
+// S / zigzag and S mirrored are disabled (weight 0) but kept for reference
+const SHAPE_WEIGHTS = [37, 37, 37, 0, 37, 37, 18, 37, 0, 37]
 
 const SINGLE_HEX_SHAPE_INDEX = 6
 
@@ -813,10 +814,10 @@ function HexGrid() {
 						onPointerDown={(e) => handlePieceDown(i, piece.color, piece.shapeIndex, piece.cells, e)}
 					>
 						<rect
-							x={slot.x - (maxX - minX) / 2 - PALETTE_HEX_SIZE}
-							y={slot.y - (maxY - minY) / 2 - PALETTE_HEX_SIZE}
-							width={maxX - minX + PALETTE_HEX_SIZE * 2}
-							height={maxY - minY + PALETTE_HEX_SIZE * 2}
+							x={slot.x - (maxX - minX) / 2 - PALETTE_HEX_SIZE * 1.5}
+							y={slot.y - (maxY - minY) / 2 - PALETTE_HEX_SIZE * 1.5}
+							width={maxX - minX + PALETTE_HEX_SIZE * 3}
+							height={maxY - minY + PALETTE_HEX_SIZE * 3}
 							fill="transparent"
 							style={{ pointerEvents: 'all' }}
 						/>
