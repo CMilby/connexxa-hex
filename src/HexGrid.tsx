@@ -141,20 +141,29 @@ type Axial = { q: number; r: number }
 const TETRAHEX_SHAPES: Axial[][] = [
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }], // I
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 2, r: -1 }], // C
-	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: -1 }], // Y / tripod
-	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 2, r: -1 }], // S / zigzag
+	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: -1 }], // Y / tripod
+	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: 1 }, { q: 2, r: 1 }], // S / zigzag
 	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }], // rhombus
 	[{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 0, r: 2 }, { q: 1, r: 2 }], // L
 	[{ q: 0, r: 0 }], // single hex
+	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 1, r: -1 }], // C mirrored
+	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: -1 }, { q: 3, r: -1 }], // S mirrored
+	[{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: -1 }, { q: 3, r: -2 }], // L mirrored
 ]
 
-// Lower weight makes the single hex appear less often than the tetrahex pieces (7.5% chance)
-const SHAPE_WEIGHTS = [37, 37, 37, 37, 37, 37, 18]
+// Lower weight makes the single hex appear less often than the tetrahex pieces (~5.1% chance)
+const SHAPE_WEIGHTS = [37, 37, 37, 37, 37, 37, 18, 37, 37, 37]
 
-function pickShapeIndex(): number {
-	const total = SHAPE_WEIGHTS.reduce((sum, w) => sum + w, 0)
+const SINGLE_HEX_SHAPE_INDEX = 6
+
+function pickShapeIndex(excludeSingle: boolean): number {
+	const total = SHAPE_WEIGHTS.reduce(
+		(sum, w, i) => sum + (excludeSingle && i === SINGLE_HEX_SHAPE_INDEX ? 0 : w),
+		0,
+	)
 	let roll = Math.random() * total
 	for (let i = 0; i < SHAPE_WEIGHTS.length; i++) {
+		if (excludeSingle && i === SINGLE_HEX_SHAPE_INDEX) continue
 		roll -= SHAPE_WEIGHTS[i]
 		if (roll < 0) return i
 	}
@@ -165,8 +174,11 @@ function rotate(cell: Axial): Axial {
 	return { q: -cell.r, r: cell.q + cell.r }
 }
 
-function randomPiece(pieceColors: string[]): { cells: Axial[]; color: string; shapeIndex: number } {
-	const shapeIndex = pickShapeIndex()
+function randomPiece(
+	pieceColors: string[],
+	excludeSingle = false,
+): { cells: Axial[]; color: string; shapeIndex: number } {
+	const shapeIndex = pickShapeIndex(excludeSingle)
 	const shape = TETRAHEX_SHAPES[shapeIndex]
 	const rotations = Math.floor(Math.random() * 6)
 	let cells = shape
@@ -175,6 +187,16 @@ function randomPiece(pieceColors: string[]): { cells: Axial[]; color: string; sh
 	}
 	const color = pieceColors[shapeIndex % pieceColors.length]
 	return { cells, color, shapeIndex }
+}
+
+// Generates a fresh set of pieces, ensuring at most one single-hex piece is present
+function randomPieceSet(pieceColors: string[]): { cells: Axial[]; color: string; shapeIndex: number }[] {
+	const pieces: { cells: Axial[]; color: string; shapeIndex: number }[] = []
+	for (let i = 0; i < 3; i++) {
+		const hasSingle = pieces.some((p) => p.shapeIndex === SINGLE_HEX_SHAPE_INDEX)
+		pieces.push(randomPiece(pieceColors, hasSingle))
+	}
+	return pieces
 }
 
 function hexCorner(cx: number, cy: number, size: number, i: number) {
@@ -288,14 +310,7 @@ function HexGrid() {
 	useEffect(() => {
 		document.body.style.background = theme.background
 	}, [theme.background])
-	const [pieces, setPieces] = useState(
-		() =>
-			loadGameState()?.pieces ?? [
-				randomPiece(theme.pieceColors),
-				randomPiece(theme.pieceColors),
-				randomPiece(theme.pieceColors),
-			],
-	)
+	const [pieces, setPieces] = useState(() => loadGameState()?.pieces ?? randomPieceSet(theme.pieceColors))
 	const [dragging, setDragging] = useState<Dragging | null>(null)
 	const [returning, setReturning] = useState<ReturningPiece | null>(null)
 	const [returningAnimate, setReturningAnimate] = useState(false)
@@ -406,7 +421,7 @@ function HexGrid() {
 			return score
 		})
 		setFilled({})
-		setPieces([randomPiece(theme.pieceColors), randomPiece(theme.pieceColors), randomPiece(theme.pieceColors)])
+		setPieces(randomPieceSet(theme.pieceColors))
 		setScore(0)
 		setDragging(null)
 		setReturning(null)
@@ -519,9 +534,13 @@ function HexGrid() {
 						return next
 					})
 					setPieces((ps) =>
-						ps.map((piece, i) =>
-							i === current.pieceIndex ? randomPiece(theme.pieceColors) : piece,
-						),
+						ps.map((piece, i) => {
+							if (i !== current.pieceIndex) return piece
+							const hasSingle = ps.some(
+								(p, j) => j !== i && p.shapeIndex === SINGLE_HEX_SHAPE_INDEX,
+							)
+							return randomPiece(theme.pieceColors, hasSingle)
+						}),
 					)
 					setPoppingPieces((prev) => new Set(prev).add(current.pieceIndex))
 				} else {

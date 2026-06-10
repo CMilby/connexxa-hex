@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tetrahex Shapes</title>
+<style>
+	body { font-family: sans-serif; background: #222; color: #eee; padding: 20px; }
+	.row { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-bottom: 24px; }
+	.row > h2 { width: 100%; margin: 0; font-size: 16px; }
+	.shape { display: flex; flex-direction: column; align-items: center; }
+	polygon { fill: #4cc9f0; stroke: #fff; stroke-width: 2; }
+	span { margin-top: 8px; }
+</style>
+</head>
+<body>
+<script>
+const SQRT3 = Math.sqrt(3);
+const SIZE = 30;
+
+const SHAPES = [
+	{ name: 'I', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] },
+	{ name: 'C', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 2, r: -1 }] },
+	{ name: 'Y / tripod', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: -1 }] },
+	{ name: 'S / zigzag', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: 1 }, { q: 2, r: 1 }] },
+	{ name: 'rhombus', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: 1, r: 1 }] },
+	{ name: 'L', cells: [{ q: 0, r: 0 }, { q: 0, r: 1 }, { q: 0, r: 2 }, { q: 1, r: 2 }] },
+	{ name: 'single hex', cells: [{ q: 0, r: 0 }] },
+	{ name: 'C mirrored', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 1, r: -1 }] },
+	{ name: 'S mirrored', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: -1 }, { q: 3, r: -1 }] },
+	{ name: 'L mirrored', cells: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: -1 }, { q: 3, r: -2 }] },
+];
+
+function rotate(cell) {
+	return { q: -cell.r, r: cell.q + cell.r };
+}
+
+function hexCorner(cx, cy, size, i) {
+	const angleRad = (Math.PI / 180) * (60 * i - 30);
+	return [cx + size * Math.cos(angleRad), cy + size * Math.sin(angleRad)];
+}
+
+function hexPoints(cx, cy, size) {
+	return Array.from({ length: 6 }, (_, i) => hexCorner(cx, cy, size, i)).map(p => p.join(',')).join(' ');
+}
+
+function axialToPixel(q, r, size) {
+	return { x: SQRT3 * size * (q + r / 2), y: 1.5 * size * r };
+}
+
+function makeShapeSvg(cells) {
+	const pixels = cells.map(c => axialToPixel(c.q, c.r, SIZE));
+	const minX = Math.min(...pixels.map(p => p.x)) - SIZE;
+	const maxX = Math.max(...pixels.map(p => p.x)) + SIZE;
+	const minY = Math.min(...pixels.map(p => p.y)) - SIZE;
+	const maxY = Math.max(...pixels.map(p => p.y)) + SIZE;
+	const width = maxX - minX;
+	const height = maxY - minY;
+
+	const svgNS = 'http://www.w3.org/2000/svg';
+	const svg = document.createElementNS(svgNS, 'svg');
+	svg.setAttribute('width', width);
+	svg.setAttribute('height', height);
+
+	for (const p of pixels) {
+		const poly = document.createElementNS(svgNS, 'polygon');
+		poly.setAttribute('points', hexPoints(p.x - minX, p.y - minY, SIZE));
+		svg.appendChild(poly);
+	}
+
+	return svg;
+}
+
+for (const shape of SHAPES) {
+	const row = document.createElement('div');
+	row.className = 'row';
+
+	const heading = document.createElement('h2');
+	heading.textContent = shape.name;
+	row.appendChild(heading);
+
+	let cells = shape.cells;
+	for (let rotation = 0; rotation < 6; rotation++) {
+		const container = document.createElement('div');
+		container.className = 'shape';
+		container.appendChild(makeShapeSvg(cells));
+		const label = document.createElement('span');
+		label.textContent = `${rotation * 60}°`;
+		container.appendChild(label);
+		row.appendChild(container);
+
+		cells = cells.map(rotate);
+	}
+
+	document.body.appendChild(row);
+}
+</script>
+</body>
+</html>
