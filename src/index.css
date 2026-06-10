@@ -62,8 +62,15 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
 body {
   margin: 0;
+  overflow: hidden;
 }
 
 h1,
