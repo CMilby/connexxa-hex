@@ -90,6 +90,16 @@ function generateLines(allCells: Axial[]): Axial[][] {
 const ALL_CELLS = generateCells()
 const LINES = generateLines(ALL_CELLS)
 
+function canPlacePiece(pieceCells: Axial[], filled: Record<string, string>): boolean {
+	return ALL_CELLS.some((anchor) =>
+		pieceCells.every((c) => {
+			const q = anchor.q + c.q
+			const r = anchor.r + c.r
+			return inGrid(q, r) && !filled[`${q},${r}`]
+		}),
+	)
+}
+
 interface Dragging {
 	pieceIndex: number
 	color: string
@@ -107,6 +117,10 @@ function HexGrid() {
 	const [pieces, setPieces] = useState(() => [randomPiece(), randomPiece(), randomPiece()])
 	const [dragging, setDragging] = useState<Dragging | null>(null)
 	const [score, setScore] = useState(0)
+	const [highScore, setHighScore] = useState(() => {
+		const stored = localStorage.getItem('hexHighScore')
+		return stored ? Number(stored) : 0
+	})
 
 	useEffect(() => {
 		const clearedLines = LINES.filter((line) => line.every((c) => filled[`${c.q},${c.r}`]))
@@ -129,6 +143,24 @@ function HexGrid() {
 			return next
 		})
 	}, [filled])
+
+	const gameOver = pieces.every((piece) => !canPlacePiece(piece.cells, filled))
+
+	useEffect(() => {
+		if (!gameOver) return
+		setHighScore((h) => {
+			if (score <= h) return h
+			localStorage.setItem('hexHighScore', String(score))
+			return score
+		})
+	}, [gameOver, score])
+
+	const startNewGame = () => {
+		setFilled({})
+		setPieces([randomPiece(), randomPiece(), randomPiece()])
+		setScore(0)
+		setDragging(null)
+	}
 
 	const cells = ALL_CELLS
 
@@ -202,6 +234,7 @@ function HexGrid() {
 		pieceCells: Axial[],
 		e: React.PointerEvent,
 	) => {
+		if (gameOver) return
 		const p = toSvgPoint(e)
 		setDragging(computeDrag(pieceIndex, color, pieceCells, p))
 	}
@@ -253,6 +286,38 @@ function HexGrid() {
 	return (
 		<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
 			<div style={{ fontSize: 24, fontWeight: 'bold' }}>Score: {score}</div>
+			{gameOver && (
+				<div
+					style={{
+						position: 'fixed',
+						inset: 0,
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+						background: 'rgba(0, 0, 0, 0.5)',
+						zIndex: 100,
+					}}
+				>
+					<div
+						style={{
+							background: '#fff',
+							borderRadius: 8,
+							padding: '24px 32px',
+							textAlign: 'center',
+							boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)',
+						}}
+					>
+						<div style={{ fontSize: 24, fontWeight: 'bold', color: '#e74c3c', marginBottom: 16 }}>
+							Game Over
+						</div>
+						<div style={{ fontSize: 18, marginBottom: 8 }}>Score: {score}</div>
+						<div style={{ fontSize: 18, marginBottom: 16 }}>High Score: {highScore}</div>
+						<button type="button" onClick={startNewGame}>
+							New Game
+						</button>
+					</div>
+				</div>
+			)}
 			<svg
 			ref={svgRef}
 			width={width}
@@ -342,9 +407,6 @@ function HexGrid() {
 					)
 				})()}
 			</svg>
-			<button type="button" onClick={() => setFilled({})}>
-				Clear grid
-			</button>
 		</div>
 	)
 }
