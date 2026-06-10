@@ -30,6 +30,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_UPSTASH_REDIS_REST_URL: ${{ secrets.VITE_UPSTASH_REDIS_REST_URL }}
+          VITE_UPSTASH_REDIS_REST_TOKEN: ${{ secrets.VITE_UPSTASH_REDIS_REST_TOKEN }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

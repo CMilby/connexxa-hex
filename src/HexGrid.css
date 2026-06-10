@@ -134,6 +134,71 @@
 	color: #555;
 }
 
+.leaderboard-section {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	border-top: 1px solid #e0e0e0;
+	border-bottom: 1px solid #e0e0e0;
+	padding: 12px 0;
+}
+
+.modal-dark .leaderboard-section {
+	border-color: rgba(255, 255, 255, 0.15);
+}
+
+.leaderboard-submit {
+	display: flex;
+	gap: 8px;
+}
+
+.leaderboard-name-input {
+	flex: 1;
+	min-width: 0;
+	font-size: 16px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	border: 2px solid #e0e0e0;
+	box-sizing: border-box;
+}
+
+.modal-dark .leaderboard-name-input {
+	border-color: rgba(255, 255, 255, 0.2);
+	background: rgba(255, 255, 255, 0.05);
+	color: #f1f1f1;
+}
+
+.leaderboard-label {
+	font-size: 14px;
+	font-weight: 700;
+	color: #95a5a6;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	text-align: left;
+}
+
+.modal-dark .leaderboard-label {
+	color: #8892b0;
+}
+
+.leaderboard-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	text-align: left;
+}
+
+.leaderboard-row {
+	display: flex;
+	justify-content: space-between;
+	font-size: 15px;
+	color: #555;
+}
+
+.modal-dark .leaderboard-row {
+	color: #cbd5e1;
+}
+
 .theme-section {
 	display: flex;
 	flex-direction: column;

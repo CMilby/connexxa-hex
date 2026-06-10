@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import gearIcon from './assets/gear.png'
+import { fetchLeaderboard, isLeaderboardConfigured, submitScore, type LeaderboardEntry } from './leaderboard'
 import './HexGrid.css'
 
 const HEX_SIZE = 40
@@ -306,6 +307,11 @@ function HexGrid() {
 		return stored ? Number(stored) : 0
 	})
 	const [showSettings, setShowSettings] = useState(false)
+	const [showLeaderboard, setShowLeaderboard] = useState(false)
+	const [playerName, setPlayerName] = useState(() => localStorage.getItem('hexPlayerName') ?? '')
+	const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+	const [scoreSubmitted, setScoreSubmitted] = useState(false)
+	const [submittingScore, setSubmittingScore] = useState(false)
 
 	const selectTheme = (id: string) => {
 		const newTheme = THEMES.find((t) => t.id === id) ?? THEMES[0]
@@ -368,6 +374,30 @@ function HexGrid() {
 			return score
 		})
 	}, [gameOver, score])
+
+	useEffect(() => {
+		if (!gameOver) {
+			setScoreSubmitted(false)
+			return
+		}
+		fetchLeaderboard().then(setLeaderboard)
+	}, [gameOver])
+
+	useEffect(() => {
+		if (!showLeaderboard) return
+		fetchLeaderboard().then(setLeaderboard)
+	}, [showLeaderboard])
+
+	const handleSubmitScore = async () => {
+		const name = playerName.trim() || 'Anonymous'
+		localStorage.setItem('hexPlayerName', name)
+		setSubmittingScore(true)
+		await submitScore(name, score)
+		const updated = await fetchLeaderboard()
+		setLeaderboard(updated)
+		setSubmittingScore(false)
+		setScoreSubmitted(true)
+	}
 
 	const startNewGame = () => {
 		setHighScore((h) => {
@@ -597,10 +627,50 @@ function HexGrid() {
 						>
 							Restart Game
 						</button>
+						{isLeaderboardConfigured() && (
+							<button
+								type="button"
+								className="btn btn-primary"
+								onClick={() => {
+									setShowSettings(false)
+									setShowLeaderboard(true)
+								}}
+							>
+								View Leaderboard
+							</button>
+						)}
 						<button type="button" className="btn btn-danger" onClick={resetHighScore}>
 							Reset High Score
 						</button>
 						<button type="button" className="btn btn-secondary" onClick={() => setShowSettings(false)}>
+							Close
+						</button>
+					</div>
+				</div>
+			)}
+			{showLeaderboard && (
+				<div className="modal-overlay" onClick={() => setShowLeaderboard(false)}>
+					<div
+						className={`modal${theme.mode === 'dark' ? ' modal-dark' : ''}`}
+						style={{ background: theme.surface }}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="modal-title" style={{ color: theme.text }}>
+							Leaderboard
+						</div>
+						{leaderboard.length > 0 ? (
+							<div className="leaderboard-list">
+								{leaderboard.map((entry, i) => (
+									<div key={i} className="leaderboard-row">
+										<span>{i + 1}. {entry.name}</span>
+										<span>{entry.score}</span>
+									</div>
+								))}
+							</div>
+						) : (
+							<div className="modal-score">No scores yet.</div>
+						)}
+						<button type="button" className="btn btn-secondary" onClick={() => setShowLeaderboard(false)}>
 							Close
 						</button>
 					</div>
@@ -612,6 +682,45 @@ function HexGrid() {
 						<div className="modal-title danger">Game Over</div>
 						<div className="modal-score">Score: {score}</div>
 						<div className="modal-score">High Score: {highScore}</div>
+						{isLeaderboardConfigured() && (
+							<div className="leaderboard-section">
+								{!scoreSubmitted ? (
+									<div className="leaderboard-submit">
+										<input
+											type="text"
+											className="leaderboard-name-input"
+											placeholder="Your name"
+											maxLength={20}
+											value={playerName}
+											onChange={(e) => setPlayerName(e.target.value)}
+										/>
+										<button
+											type="button"
+											className="btn btn-primary"
+											disabled={submittingScore}
+											onClick={handleSubmitScore}
+										>
+											{submittingScore ? 'Submitting...' : 'Submit Score'}
+										</button>
+									</div>
+								) : (
+									<div className="leaderboard-label">Score submitted!</div>
+								)}
+								{leaderboard.length > 0 && (
+									<div className="leaderboard-list">
+										<div className="leaderboard-label">Leaderboard</div>
+										{leaderboard.map((entry, i) => (
+											<div key={i} className="leaderboard-row">
+												<span>
+													{i + 1}. {entry.name}
+												</span>
+												<span>{entry.score}</span>
+											</div>
+										))}
+									</div>
+								)}
+							</div>
+						)}
 						<button type="button" className="btn btn-primary" onClick={startNewGame}>
 							New Game
 						</button>
