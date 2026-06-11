@@ -215,27 +215,30 @@ function findHoles(filled: Record<string, string>): Axial[][] {
 	return holes
 }
 
+// Checks whether the given (already-rotated) shape cells fit entirely within a set of cells, allowing translation
+function shapeCellsFitInCells(shapeCells: Axial[], cells: Axial[]): boolean {
+	const cellSet = new Set(cells.map((c) => `${c.q},${c.r}`))
+	for (const origin of cells) {
+		const anchor = { q: origin.q - shapeCells[0].q, r: origin.r - shapeCells[0].r }
+		if (shapeCells.every((c) => cellSet.has(`${anchor.q + c.q},${anchor.r + c.r}`))) {
+			return true
+		}
+	}
+	return false
+}
+
 // Checks whether any rotation of the given shape fits entirely within a set of cells
 function shapeFitsInCells(shapeIndex: number, cells: Axial[]): boolean {
-	const cellSet = new Set(cells.map((c) => `${c.q},${c.r}`))
 	let shape = TETRAHEX_SHAPES[shapeIndex]
 	for (let rotation = 0; rotation < 6; rotation++) {
-		for (const origin of cells) {
-			const anchor = { q: origin.q - shape[0].q, r: origin.r - shape[0].r }
-			if (
-				shape.every((c) => cellSet.has(`${anchor.q + c.q},${anchor.r + c.r}`))
-			) {
-				return true
-			}
-		}
+		if (shapeCellsFitInCells(shape, cells)) return true
 		shape = shape.map(rotate)
 	}
 	return false
 }
 
-// Finds shapes that fit within a 4-6 hex hole on the board, for a small weight boost
-function findBoostedShapeIndices(filled: Record<string, string>): Set<number> {
-	const holes = findHoles(filled).filter((h) => h.length >= 4 && h.length <= 8)
+// Finds shapes that fit within a 4-8 hex hole on the board, for a small weight boost
+function findBoostedShapeIndices(holes: Axial[][]): Set<number> {
 	const boosted = new Set<number>()
 	for (let shapeIndex = 0; shapeIndex < TETRAHEX_SHAPES.length; shapeIndex++) {
 		if (holes.some((hole) => shapeFitsInCells(shapeIndex, hole))) {
@@ -243,6 +246,19 @@ function findBoostedShapeIndices(filled: Record<string, string>): Set<number> {
 		}
 	}
 	return boosted
+}
+
+// Finds which rotations (0-5) of the given shape fit within one of the given holes
+function findFittingRotations(shapeIndex: number, holes: Axial[][]): number[] {
+	let shape = TETRAHEX_SHAPES[shapeIndex]
+	const fitting: number[] = []
+	for (let rotation = 0; rotation < 6; rotation++) {
+		if (holes.some((hole) => shapeCellsFitInCells(shape, hole))) {
+			fitting.push(rotation)
+		}
+		shape = shape.map(rotate)
+	}
+	return fitting
 }
 
 function rotate(cell: Axial): Axial {
@@ -254,10 +270,17 @@ function randomPiece(
 	excludeSingle = false,
 	presentShapeIndices: Set<number> = new Set(),
 	boostedShapeIndices: Set<number> = new Set(),
+	holes: Axial[][] = [],
 ): { cells: Axial[]; color: string; shapeIndex: number } {
 	const shapeIndex = pickShapeIndex(excludeSingle, presentShapeIndices, boostedShapeIndices)
 	const shape = TETRAHEX_SHAPES[shapeIndex]
-	const rotations = Math.floor(Math.random() * 6)
+	let rotations = Math.floor(Math.random() * 6)
+	if (boostedShapeIndices.has(shapeIndex)) {
+		const fittingRotations = findFittingRotations(shapeIndex, holes)
+		if (fittingRotations.length > 0) {
+			rotations = fittingRotations[Math.floor(Math.random() * fittingRotations.length)]
+		}
+	}
 	let cells = shape
 	for (let i = 0; i < rotations; i++) {
 		cells = cells.map(rotate)
@@ -271,12 +294,13 @@ function randomPieceSet(
 	pieceColors: string[],
 	filled: Record<string, string> = {},
 ): { cells: Axial[]; color: string; shapeIndex: number }[] {
-	const boostedShapeIndices = findBoostedShapeIndices(filled)
+	const holes = findHoles(filled).filter((h) => h.length >= 4 && h.length <= 8)
+	const boostedShapeIndices = findBoostedShapeIndices(holes)
 	const pieces: { cells: Axial[]; color: string; shapeIndex: number }[] = []
 	for (let i = 0; i < 3; i++) {
 		const hasSingle = pieces.some((p) => p.shapeIndex === SINGLE_HEX_SHAPE_INDEX)
 		const presentShapeIndices = new Set(pieces.map((p) => p.shapeIndex))
-		pieces.push(randomPiece(pieceColors, hasSingle, presentShapeIndices, boostedShapeIndices))
+		pieces.push(randomPiece(pieceColors, hasSingle, presentShapeIndices, boostedShapeIndices, holes))
 	}
 	return pieces
 }
@@ -635,7 +659,8 @@ function HexGrid() {
 						nextFilled = next
 						return next
 					})
-					const boostedShapeIndices = findBoostedShapeIndices(nextFilled)
+					const holes = findHoles(nextFilled).filter((h) => h.length >= 4 && h.length <= 8)
+					const boostedShapeIndices = findBoostedShapeIndices(holes)
 					setPieces((ps) =>
 						ps.map((piece, i) => {
 							if (i !== current.pieceIndex) return piece
@@ -645,7 +670,7 @@ function HexGrid() {
 							const presentShapeIndices = new Set(
 								ps.filter((_p, j) => j !== i).map((p) => p.shapeIndex),
 							)
-							return randomPiece(theme.pieceColors, hasSingle, presentShapeIndices, boostedShapeIndices)
+							return randomPiece(theme.pieceColors, hasSingle, presentShapeIndices, boostedShapeIndices, holes)
 						}),
 					)
 					setPoppingPieces((prev) => new Set(prev).add(current.pieceIndex))
