@@ -26,7 +26,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'classic',
 		name: 'Classic',
-		pieceColors: ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c', '#34495e'],
+		pieceColors: ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c', '#34495e', '#f1c40f'],
 		emptyCell: '#f5d76e',
 		background: '#f4f6f7',
 		surface: '#ffffff',
@@ -37,7 +37,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'pastel',
 		name: 'Pastel',
-		pieceColors: ['#ffadad', '#a0c4ff', '#caffbf', '#cdb4db', '#ffd6a5', '#9bf6ff', '#fdffb6'],
+		pieceColors: ['#ffadad', '#a0c4ff', '#caffbf', '#cdb4db', '#ffd6a5', '#9bf6ff', '#fdffb6', '#bdb2ff'],
 		emptyCell: '#fff1d6',
 		background: '#fef9f5',
 		surface: '#ffffff',
@@ -48,7 +48,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'neon',
 		name: 'Neon',
-		pieceColors: ['#ff6b6b', '#4cc9f0', '#7bf1a8', '#b388ff', '#ffd166', '#f15bb5', '#ffffff'],
+		pieceColors: ['#ff6b6b', '#4cc9f0', '#7bf1a8', '#b388ff', '#ffd166', '#f15bb5', '#ffffff', '#fee440'],
 		emptyCell: '#1b1f3b',
 		background: '#0d1117',
 		surface: '#161b2e',
@@ -59,7 +59,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'space',
 		name: 'Space',
-		pieceColors: ['#8d99ae', '#5e6a8c', '#9a8c98', '#6f8a93', '#7d6e83', '#576f72', '#cbd5e1'],
+		pieceColors: ['#8d99ae', '#5e6a8c', '#9a8c98', '#6f8a93', '#7d6e83', '#576f72', '#cbd5e1', '#4a5568'],
 		emptyCell: '#1c1c2b',
 		background: '#11131f',
 		surface: '#1c1c2b',
@@ -70,7 +70,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'ocean',
 		name: 'Ocean',
-		pieceColors: ['#118ab2', '#06d6a0', '#073b4c', '#5fb0b7', '#0496ff', '#83c5be', '#edf6f9'],
+		pieceColors: ['#118ab2', '#06d6a0', '#073b4c', '#5fb0b7', '#0496ff', '#83c5be', '#edf6f9', '#ffd166'],
 		emptyCell: '#dceefb',
 		background: '#eaf6f8',
 		surface: '#ffffff',
@@ -81,7 +81,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'autumn',
 		name: 'Autumn',
-		pieceColors: ['#bc4749', '#dd6e42', '#e8a317', '#a47148', '#6a4c2c', '#8c5e58', '#c97b63'],
+		pieceColors: ['#bc4749', '#dd6e42', '#e8a317', '#a47148', '#6a4c2c', '#8c5e58', '#c97b63', '#e09f3e'],
 		emptyCell: '#f3e1c5',
 		background: '#fbf3e7',
 		surface: '#ffffff',
@@ -92,7 +92,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'retro',
 		name: 'Retro',
-		pieceColors: ['#ff00ff', '#00ffff', '#ffff00', '#39ff14', '#ff5f1f', '#ff1493', '#ffffff'],
+		pieceColors: ['#ff00ff', '#00ffff', '#ffff00', '#39ff14', '#ff5f1f', '#ff1493', '#ffffff', '#7d12ff'],
 		emptyCell: '#0d0d0d',
 		background: '#000000',
 		surface: '#1a1a1a',
@@ -103,7 +103,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'mono',
 		name: 'Monochrome',
-		pieceColors: ['#1a1a1a', '#3d3d3d', '#5e5e5e', '#7f7f7f', '#a0a0a0', '#c1c1c1', '#e2e2e2'],
+		pieceColors: ['#1a1a1a', '#3d3d3d', '#5e5e5e', '#7f7f7f', '#a0a0a0', '#c1c1c1', '#e2e2e2', '#0d0d0d'],
 		emptyCell: '#f5f5f5',
 		background: '#fafafa',
 		surface: '#ffffff',
@@ -114,7 +114,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'candy',
 		name: 'Candy',
-		pieceColors: ['#ff6fb5', '#c77dff', '#7bdff2', '#ffb6e1', '#fff075', '#a0ffe6', '#ffffff'],
+		pieceColors: ['#ff6fb5', '#c77dff', '#7bdff2', '#ffb6e1', '#fff075', '#a0ffe6', '#ffffff', '#caffbf'],
 		emptyCell: '#fdf0f7',
 		background: '#fff5fb',
 		surface: '#ffffff',
@@ -125,7 +125,7 @@ const THEMES: Theme[] = [
 	{
 		id: 'forest',
 		name: 'Forest',
-		pieceColors: ['#2d6a4f', '#40916c', '#74c69d', '#95d5b2', '#588157', '#a3b18a', '#d4a373'],
+		pieceColors: ['#2d6a4f', '#40916c', '#74c69d', '#95d5b2', '#588157', '#a3b18a', '#d4a373', '#1b4332'],
 		emptyCell: '#e9edc9',
 		background: '#f1f7ed',
 		surface: '#ffffff',
@@ -156,6 +156,13 @@ const TETRAHEX_SHAPES: Axial[][] = [
 const SHAPE_WEIGHTS = [37, 37, 30, 0, 37, 37, 18, 37, 0, 37]
 
 const SINGLE_HEX_SHAPE_INDEX = 6
+
+// Maps each shape index to a color index, ensuring no two active shapes share a color
+const SHAPE_COLOR_INDEX = [0, 1, 2, 3, 4, 5, 6, 7, 3, 3]
+
+function shapeColor(shapeIndex: number, pieceColors: string[]): string {
+	return pieceColors[SHAPE_COLOR_INDEX[shapeIndex] % pieceColors.length]
+}
 
 function pickShapeIndex(
 	excludeSingle: boolean,
@@ -285,7 +292,7 @@ function randomPiece(
 	for (let i = 0; i < rotations; i++) {
 		cells = cells.map(rotate)
 	}
-	const color = pieceColors[shapeIndex % pieceColors.length]
+	const color = shapeColor(shapeIndex, pieceColors)
 	return { cells, color, shapeIndex }
 }
 
@@ -444,7 +451,7 @@ function HexGrid() {
 		setPieces((ps) =>
 			ps.map((piece) => ({
 				...piece,
-				color: newTheme.pieceColors[piece.shapeIndex % newTheme.pieceColors.length],
+				color: shapeColor(piece.shapeIndex, newTheme.pieceColors),
 			})),
 		)
 	}
@@ -888,7 +895,7 @@ function HexGrid() {
 					points={hexPoints(c.x, c.y, HEX_SIZE)}
 					fill={
 						filled[`${c.q},${c.r}`] !== undefined
-							? theme.pieceColors[Number(filled[`${c.q},${c.r}`]) % theme.pieceColors.length]
+							? shapeColor(Number(filled[`${c.q},${c.r}`]), theme.pieceColors)
 							: theme.emptyCell
 					}
 					stroke="#333"
