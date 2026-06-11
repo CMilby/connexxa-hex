@@ -157,18 +157,92 @@ const SHAPE_WEIGHTS = [37, 37, 30, 0, 37, 37, 18, 37, 0, 37]
 
 const SINGLE_HEX_SHAPE_INDEX = 6
 
-function pickShapeIndex(excludeSingle: boolean): number {
-	const total = SHAPE_WEIGHTS.reduce(
-		(sum, w, i) => sum + (excludeSingle && i === SINGLE_HEX_SHAPE_INDEX ? 0 : w),
-		0,
-	)
+function pickShapeIndex(
+	excludeSingle: boolean,
+	presentShapeIndices: Set<number>,
+	boostedShapeIndices: Set<number>,
+): number {
+	const weightFor = (i: number) => {
+		if (excludeSingle && i === SINGLE_HEX_SHAPE_INDEX) return 0
+		let w = SHAPE_WEIGHTS[i]
+		if (presentShapeIndices.has(i)) w /= 3
+		if (boostedShapeIndices.has(i)) w *= 1.1
+		return w
+	}
+	const total = SHAPE_WEIGHTS.reduce((sum, _w, i) => sum + weightFor(i), 0)
 	let roll = Math.random() * total
 	for (let i = 0; i < SHAPE_WEIGHTS.length; i++) {
-		if (excludeSingle && i === SINGLE_HEX_SHAPE_INDEX) continue
-		roll -= SHAPE_WEIGHTS[i]
+		roll -= weightFor(i)
 		if (roll < 0) return i
 	}
 	return SHAPE_WEIGHTS.length - 1
+}
+
+// Hex neighbor directions in axial coordinates
+const HEX_DIRECTIONS: Axial[] = [
+	{ q: 1, r: 0 },
+	{ q: 1, r: -1 },
+	{ q: 0, r: -1 },
+	{ q: -1, r: 0 },
+	{ q: -1, r: 1 },
+	{ q: 0, r: 1 },
+]
+
+// Finds connected groups of empty cells ("holes") on the board
+function findHoles(filled: Record<string, string>): Axial[][] {
+	const visited = new Set<string>()
+	const holes: Axial[][] = []
+	for (const cell of ALL_CELLS) {
+		const key = `${cell.q},${cell.r}`
+		if (filled[key] || visited.has(key)) continue
+		const group: Axial[] = []
+		const queue: Axial[] = [cell]
+		visited.add(key)
+		while (queue.length > 0) {
+			const c = queue.shift()!
+			group.push(c)
+			for (const dir of HEX_DIRECTIONS) {
+				const nq = c.q + dir.q
+				const nr = c.r + dir.r
+				const nKey = `${nq},${nr}`
+				if (!inGrid(nq, nr) || filled[nKey] || visited.has(nKey)) continue
+				visited.add(nKey)
+				queue.push({ q: nq, r: nr })
+			}
+		}
+		holes.push(group)
+	}
+	return holes
+}
+
+// Checks whether any rotation of the given shape fits entirely within a set of cells
+function shapeFitsInCells(shapeIndex: number, cells: Axial[]): boolean {
+	const cellSet = new Set(cells.map((c) => `${c.q},${c.r}`))
+	let shape = TETRAHEX_SHAPES[shapeIndex]
+	for (let rotation = 0; rotation < 6; rotation++) {
+		for (const origin of cells) {
+			const anchor = { q: origin.q - shape[0].q, r: origin.r - shape[0].r }
+			if (
+				shape.every((c) => cellSet.has(`${anchor.q + c.q},${anchor.r + c.r}`))
+			) {
+				return true
+			}
+		}
+		shape = shape.map(rotate)
+	}
+	return false
+}
+
+// Finds shapes that fit within a 4-6 hex hole on the board, for a small weight boost
+function findBoostedShapeIndices(filled: Record<string, string>): Set<number> {
+	const holes = findHoles(filled).filter((h) => h.length >= 4 && h.length <= 8)
+	const boosted = new Set<number>()
+	for (let shapeIndex = 0; shapeIndex < TETRAHEX_SHAPES.length; shapeIndex++) {
+		if (holes.some((hole) => shapeFitsInCells(shapeIndex, hole))) {
+			boosted.add(shapeIndex)
+		}
+	}
+	return boosted
 }
 
 function rotate(cell: Axial): Axial {
@@ -178,8 +252,10 @@ function rotate(cell: Axial): Axial {
 function randomPiece(
 	pieceColors: string[],
 	excludeSingle = false,
+	presentShapeIndices: Set<number> = new Set(),
+	boostedShapeIndices: Set<number> = new Set(),
 ): { cells: Axial[]; color: string; shapeIndex: number } {
-	const shapeIndex = pickShapeIndex(excludeSingle)
+	const shapeIndex = pickShapeIndex(excludeSingle, presentShapeIndices, boostedShapeIndices)
 	const shape = TETRAHEX_SHAPES[shapeIndex]
 	const rotations = Math.floor(Math.random() * 6)
 	let cells = shape
@@ -191,11 +267,16 @@ function randomPiece(
 }
 
 // Generates a fresh set of pieces, ensuring at most one single-hex piece is present
-function randomPieceSet(pieceColors: string[]): { cells: Axial[]; color: string; shapeIndex: number }[] {
+function randomPieceSet(
+	pieceColors: string[],
+	filled: Record<string, string> = {},
+): { cells: Axial[]; color: string; shapeIndex: number }[] {
+	const boostedShapeIndices = findBoostedShapeIndices(filled)
 	const pieces: { cells: Axial[]; color: string; shapeIndex: number }[] = []
 	for (let i = 0; i < 3; i++) {
 		const hasSingle = pieces.some((p) => p.shapeIndex === SINGLE_HEX_SHAPE_INDEX)
-		pieces.push(randomPiece(pieceColors, hasSingle))
+		const presentShapeIndices = new Set(pieces.map((p) => p.shapeIndex))
+		pieces.push(randomPiece(pieceColors, hasSingle, presentShapeIndices, boostedShapeIndices))
 	}
 	return pieces
 }
@@ -312,7 +393,9 @@ function HexGrid() {
 	useEffect(() => {
 		document.body.style.background = theme.background
 	}, [theme.background])
-	const [pieces, setPieces] = useState(() => loadGameState()?.pieces ?? randomPieceSet(theme.pieceColors))
+	const [pieces, setPieces] = useState(
+		() => loadGameState()?.pieces ?? randomPieceSet(theme.pieceColors, loadGameState()?.filled ?? {}),
+	)
 	const [dragging, setDragging] = useState<Dragging | null>(null)
 	const [returning, setReturning] = useState<ReturningPiece | null>(null)
 	const [returningAnimate, setReturningAnimate] = useState(false)
@@ -543,20 +626,26 @@ function HexGrid() {
 			setDragging((current) => {
 				if (!current) return null
 				if (current.valid) {
+					let nextFilled: Record<string, string> = {}
 					setFilled((f) => {
 						const next = { ...f }
 						for (const c of current.targetCells) {
 							next[`${c.q},${c.r}`] = String(current.shapeIndex)
 						}
+						nextFilled = next
 						return next
 					})
+					const boostedShapeIndices = findBoostedShapeIndices(nextFilled)
 					setPieces((ps) =>
 						ps.map((piece, i) => {
 							if (i !== current.pieceIndex) return piece
 							const hasSingle = ps.some(
 								(p, j) => j !== i && p.shapeIndex === SINGLE_HEX_SHAPE_INDEX,
 							)
-							return randomPiece(theme.pieceColors, hasSingle)
+							const presentShapeIndices = new Set(
+								ps.filter((_p, j) => j !== i).map((p) => p.shapeIndex),
+							)
+							return randomPiece(theme.pieceColors, hasSingle, presentShapeIndices, boostedShapeIndices)
 						}),
 					)
 					setPoppingPieces((prev) => new Set(prev).add(current.pieceIndex))
