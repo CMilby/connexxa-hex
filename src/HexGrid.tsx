@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import gearIcon from './assets/gear.png'
 import { fetchLeaderboard, isLeaderboardConfigured, submitScore, type LeaderboardEntry } from './leaderboard'
+import { loadStats, saveStats, type Stats } from './stats'
 import './HexGrid.css'
 
 const HEX_SIZE = 40
@@ -27,7 +28,7 @@ const THEMES: Theme[] = [
 		id: 'classic',
 		name: 'Classic',
 		pieceColors: ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#1abc9c', '#34495e', '#f1c40f'],
-		emptyCell: '#f5d76e',
+		emptyCell: '#fbecb0',
 		background: '#f4f6f7',
 		surface: '#ffffff',
 		text: '#5d6d7e',
@@ -102,7 +103,7 @@ const THEMES: Theme[] = [
 	},
 	{
 		id: 'mono',
-		name: 'Monochrome',
+		name: 'Mono',
 		pieceColors: ['#1a1a1a', '#3d3d3d', '#5e5e5e', '#7f7f7f', '#a0a0a0', '#c1c1c1', '#e2e2e2', '#0d0d0d'],
 		emptyCell: '#f5f5f5',
 		background: '#fafafa',
@@ -132,6 +133,28 @@ const THEMES: Theme[] = [
 		text: '#2d6a4f',
 		textSecondary: '#74c69d',
 		mode: 'light',
+	},
+	{
+		id: 'sunset',
+		name: 'Sunset',
+		pieceColors: ['#ff6f61', '#ffb347', '#ff8fab', '#c44536', '#ffd23f', '#ee6c4d', '#9d4edd', '#f4a261'],
+		emptyCell: '#fff0e1',
+		background: '#fff8f0',
+		surface: '#ffffff',
+		text: '#7a4a3a',
+		textSecondary: '#e76f51',
+		mode: 'light',
+	},
+	{
+		id: 'midnight',
+		name: 'Midnight',
+		pieceColors: ['#5390d9', '#7400b8', '#4ea8de', '#80ffdb', '#9d4edd', '#48bfe3', '#e0aaff', '#5e60ce'],
+		emptyCell: '#1a1a2e',
+		background: '#0f0f1e',
+		surface: '#16213e',
+		text: '#e0aaff',
+		textSecondary: '#7400b8',
+		mode: 'dark',
 	},
 ]
 
@@ -439,6 +462,8 @@ function HexGrid() {
 	})
 	const [showSettings, setShowSettings] = useState(false)
 	const [showLeaderboard, setShowLeaderboard] = useState(false)
+	const [showStats, setShowStats] = useState(false)
+	const [stats, setStats] = useState<Stats>(() => loadStats())
 	const [playerName, setPlayerName] = useState(() => localStorage.getItem('hexPlayerName') ?? '')
 	const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
 	const [scoreSubmitted, setScoreSubmitted] = useState(false)
@@ -467,6 +492,13 @@ function HexGrid() {
 		})
 		setScore((s) => s + gained)
 
+		setStats((s) => ({
+			...s,
+			linesCleared: s.linesCleared + clearedLines.length,
+			bestMoveLines: Math.max(s.bestMoveLines, clearedLines.length),
+			bestMovePoints: Math.max(s.bestMovePoints, gained),
+		}))
+
 		const clearedKeys = new Set<string>()
 		for (const line of clearedLines) {
 			for (const c of line) {
@@ -494,6 +526,10 @@ function HexGrid() {
 		localStorage.setItem('hexGameState', JSON.stringify(state))
 	}, [filled, pieces, score])
 
+	useEffect(() => {
+		saveStats(stats)
+	}, [stats])
+
 	const hasClearableLine = LINES.some((line) => line.every((c) => filled[`${c.q},${c.r}`]))
 	const gameOver = !hasClearableLine && pieces.every((piece) => !canPlacePiece(piece.cells, filled))
 
@@ -504,6 +540,7 @@ function HexGrid() {
 			localStorage.setItem('hexHighScore', String(score))
 			return score
 		})
+		setStats((s) => ({ ...s, gamesPlayed: s.gamesPlayed + 1 }))
 	}, [gameOver, score])
 
 	useEffect(() => {
@@ -681,6 +718,7 @@ function HexGrid() {
 						}),
 					)
 					setPoppingPieces((prev) => new Set(prev).add(current.pieceIndex))
+					setStats((s) => ({ ...s, piecesPlaced: s.piecesPlaced + 1 }))
 				} else {
 					setReturning({
 						pieceIndex: current.pieceIndex,
@@ -784,21 +822,33 @@ function HexGrid() {
 						>
 							Restart Game
 						</button>
-						{isLeaderboardConfigured() && (
+						<div className="modal-actions-row">
+							{isLeaderboardConfigured() && (
+								<button
+									type="button"
+									className="btn btn-small btn-primary"
+									onClick={() => {
+										setShowSettings(false)
+										setShowLeaderboard(true)
+									}}
+								>
+									Leaderboard
+								</button>
+							)}
 							<button
 								type="button"
-								className="btn btn-primary"
+								className="btn btn-small btn-primary"
 								onClick={() => {
 									setShowSettings(false)
-									setShowLeaderboard(true)
+									setShowStats(true)
 								}}
 							>
-								View Leaderboard
+								Statistics
 							</button>
-						)}
-						<button type="button" className="btn btn-danger" onClick={resetHighScore}>
-							Reset High Score
-						</button>
+							<button type="button" className="btn btn-small btn-danger" onClick={resetHighScore}>
+								Reset High Score
+							</button>
+						</div>
 						<button type="button" className="btn btn-secondary" onClick={() => setShowSettings(false)}>
 							Close
 						</button>
@@ -828,6 +878,44 @@ function HexGrid() {
 							<div className="modal-score">No scores yet.</div>
 						)}
 						<button type="button" className="btn btn-secondary" onClick={() => setShowLeaderboard(false)}>
+							Close
+						</button>
+					</div>
+				</div>
+			)}
+			{showStats && (
+				<div className="modal-overlay" onClick={() => setShowStats(false)}>
+					<div
+						className={`modal${theme.mode === 'dark' ? ' modal-dark' : ''}`}
+						style={{ background: theme.surface }}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="modal-title" style={{ color: theme.text }}>
+							Statistics
+						</div>
+						<div className="leaderboard-list">
+							<div className="leaderboard-row">
+								<span>Pieces Placed</span>
+								<span>{stats.piecesPlaced}</span>
+							</div>
+							<div className="leaderboard-row">
+								<span>Lines Cleared</span>
+								<span>{stats.linesCleared}</span>
+							</div>
+							<div className="leaderboard-row">
+								<span>Games Played</span>
+								<span>{stats.gamesPlayed}</span>
+							</div>
+							<div className="leaderboard-row">
+								<span>Best Move (Lines Cleared)</span>
+								<span>{stats.bestMoveLines}</span>
+							</div>
+							<div className="leaderboard-row">
+								<span>Best Move (Points)</span>
+								<span>{stats.bestMovePoints}</span>
+							</div>
+						</div>
+						<button type="button" className="btn btn-secondary" onClick={() => setShowStats(false)}>
 							Close
 						</button>
 					</div>
