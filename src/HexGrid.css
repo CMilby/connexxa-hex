@@ -326,6 +326,39 @@
 	gap: 8px;
 }
 
+.modal-divider {
+	height: 1px;
+	background: rgba(0, 0, 0, 0.1);
+	margin: 4px 0;
+}
+
+.modal-dark .modal-divider {
+	background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-link {
+	background: none;
+	border: none;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 600;
+	padding: 4px;
+	color: #95a5a6;
+	transition: color 0.1s ease;
+}
+
+.btn-link:hover {
+	color: #7f8c8d;
+}
+
+.btn-link-danger {
+	color: #e74c3c;
+}
+
+.btn-link-danger:hover {
+	color: #c0392b;
+}
+
 .btn-small {
 	flex: 1 1 auto;
 	font-size: 14px;

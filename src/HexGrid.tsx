@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import gearIcon from './assets/gear.png'
 import { fetchLeaderboard, isLeaderboardConfigured, submitScore, type LeaderboardEntry } from './leaderboard'
-import { loadStats, saveStats, type Stats } from './stats'
+import { clearStats, DEFAULT_STATS, loadStats, saveStats, type Stats } from './stats'
 import './HexGrid.css'
 
 const HEX_SIZE = 40
@@ -463,6 +463,7 @@ function HexGrid() {
 	const [showSettings, setShowSettings] = useState(false)
 	const [showLeaderboard, setShowLeaderboard] = useState(false)
 	const [showStats, setShowStats] = useState(false)
+	const [showResetConfirm, setShowResetConfirm] = useState(false)
 	const [stats, setStats] = useState<Stats>(() => loadStats())
 	const [playerName, setPlayerName] = useState(() => localStorage.getItem('hexPlayerName') ?? '')
 	const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
@@ -580,9 +581,11 @@ function HexGrid() {
 		setReturning(null)
 	}
 
-	const resetHighScore = () => {
+	const resetStatistics = () => {
 		setHighScore(0)
 		localStorage.removeItem('hexHighScore')
+		setStats({ ...DEFAULT_STATS })
+		clearStats()
 	}
 
 	const cells = ALL_CELLS
@@ -845,12 +848,44 @@ function HexGrid() {
 							>
 								Statistics
 							</button>
-							<button type="button" className="btn btn-small btn-danger" onClick={resetHighScore}>
-								Reset High Score
-							</button>
 						</div>
 						<button type="button" className="btn btn-secondary" onClick={() => setShowSettings(false)}>
 							Close
+						</button>
+						<div className="modal-divider" />
+						<button
+							type="button"
+							className="btn-link btn-link-danger"
+							onClick={() => setShowResetConfirm(true)}
+						>
+							Reset Statistics
+						</button>
+					</div>
+				</div>
+			)}
+			{showResetConfirm && (
+				<div className="modal-overlay" onClick={() => setShowResetConfirm(false)}>
+					<div
+						className={`modal${theme.mode === 'dark' ? ' modal-dark' : ''}`}
+						style={{ background: theme.surface }}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="modal-title danger">Reset Statistics?</div>
+						<div className="modal-score">
+							This will clear your high score and all statistics. This cannot be undone.
+						</div>
+						<button
+							type="button"
+							className="btn btn-danger"
+							onClick={() => {
+								resetStatistics()
+								setShowResetConfirm(false)
+							}}
+						>
+							Reset Statistics
+						</button>
+						<button type="button" className="btn btn-secondary" onClick={() => setShowResetConfirm(false)}>
+							Cancel
 						</button>
 					</div>
 				</div>

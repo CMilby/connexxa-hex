@@ -8,7 +8,7 @@ export interface Stats {
 	bestMovePoints: number
 }
 
-const DEFAULT_STATS: Stats = {
+export const DEFAULT_STATS: Stats = {
 	piecesPlaced: 0,
 	linesCleared: 0,
 	gamesPlayed: 0,
@@ -28,4 +28,8 @@ export function loadStats(): Stats {
 
 export function saveStats(stats: Stats): void {
 	localStorage.setItem(STATS_KEY, JSON.stringify(stats))
+}
+
+export function clearStats(): void {
+	localStorage.removeItem(STATS_KEY)
 }
